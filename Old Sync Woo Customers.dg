@@ -1,0 +1,55 @@
+string standalone.sync_woo_customers()
+{
+response = invokeurl
+[
+	url :"https://your-domain.com/wp-json/wc/v3/customers"
+	type :GET
+	connection:"woocommercecustom"
+];
+// We will add these fields and must get them from the JSON
+// Email, First Name, Last Name,Phone, Title
+for each  user in response
+{
+	firstName = user.get("first_name");
+	lastName = user.get("last_name");
+	payingCustomer = ifNull(user.get("is_paying_customer"),false);
+	billingInfo = user.get("billing");
+	email = user.get("email");
+	phoneNumber = "";
+	if(billingInfo != null)
+	{
+		phoneNumber = billingInfo.get("phone").replaceAll("-","");
+	}
+	if(payingCustomer == true)
+	{
+		searchContact = zoho.crm.searchRecords("Contacts","(Email:equals:" + email + ")");
+		if(searchContact.size() == 0)
+		{
+			//response = zoho.crm.createRecord("Contacts", recordData);
+			info "Created Contact: " + firstName + " " + lastName;
+		}
+		else
+		{
+			// Updates a pre-existing contact
+			contactId = searchContact.get(0).get("id");
+			//response = zoho.crm.updateRecord("Contacts", contactId, recordData);
+			info "Updated Contact: " + firstName + " " + lastName;
+		}
+	}
+	// Not a paying customer
+	// They could be a pre-existing lead
+	else
+	{
+		// ROUTE TO LEADS
+		// Check if they already exist as a lead first
+		searchLead = zoho.crm.searchRecords("Leads","(Email:equals:" + email + ")");
+		if(searchLead.size() == 0)
+		{
+			//recordData.put("Company", "Online Shopper");
+			//response = zoho.crm.createRecord("Leads", recordData);
+			info "Created Lead: " + lastName;
+		}
+	}
+}
+return "";
+}

@@ -1,0 +1,72 @@
+string standalone.get_woo_orders(Map crmAPIRequest)
+{
+payloadString = crmAPIRequest.get("body");
+if(payloadString == "")
+{
+	return "Error: Empty request body";
+}
+ordersList = payloadString.toJSONList();
+order = ordersList.get(0).toMap();
+orderId = order.get("id").toString();
+orderTotal = order.get("total").toDecimal();
+// Extract billing info for name and email
+billingInfo = order.get("billing");
+// We don't need null checks for email, firstName, lastName because they are guaranteed
+// to not be null because
+// 1. You need an account to purchase items (email is never null)
+// 2. You need a billing address, which contains first name and last name and your email
+email = "";
+firstName = "";
+lastName = "";
+if(billingInfo != null)
+{
+	email = billingInfo.get("email");
+	firstName = billingInfo.get("first_name");
+	lastName = billingInfo.get("last_name");
+}
+contactId = "";
+// Step A: Check if they are already an established Contact (Returning Customer)
+searchContact = zoho.crm.searchRecords("Contacts","(Email:equals:" + email + ")");
+if(searchContact.size() > 0)
+{
+	contactId = searchContact.get(0).get("id");
+	info "Returning Customer Detected. Existing Contact ID: " + contactId;
+}
+// If not a contact, then a lead!
+else
+{
+	searchLead = zoho.crm.searchRecords("Leads","(Email:equals:" + email + ")");
+	if(searchLead.size() > 0)
+	{
+		leadId = searchLead.get(0).get("id");
+		conversionMap = Map();
+		conversionMap.put("overwrite",true);
+		conversionMap.put("notify_lead_owner",false);
+		conversionResponse = zoho.crm.convertLead(leadId,conversionMap);
+		info "Converted Lead to Contact: " + conversionResponse;
+		if(conversionResponse.get("Contacts") != null)
+		{
+			contactId = conversionResponse.get("Contacts");
+		}
+	}
+	else
+	{
+		return "Error: User profile not found in CRM database";
+	}
+}
+if(contactId != "")
+{
+	dealData = Map();
+	// This creates a name for the order that contains the orderId and name of the customer
+	dealData.put("Deal_Name","Order #" + orderId + " - " + firstName + " " + lastName);
+	dealData.put("Amount",orderTotal);
+	dealData.put("Closing_Date",today.toString("yyyy-MM-dd"));
+	dealData.put("Stage","Qualification");
+	contactLink = Map();
+	contactLink.put("id",contactId);
+	dealData.put("Contact_Name",contactLink);
+	createDeal = zoho.crm.createRecord("Deals",dealData);
+	info "Deal Created successfully: " + createDeal;
+}
+return "Deal creation workflow completed for Order #" + orderId;
+}

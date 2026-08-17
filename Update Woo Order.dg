@@ -1,0 +1,34 @@
+string standalone.update_woo_order(Map crmAPIRequest)
+{
+payloadString = crmAPIRequest.get("body");
+if(payloadString == "")
+{
+	return "Error: Empty request body";
+}
+ordersList = payloadString.toJSONList();
+order = ordersList.get(0).toMap();
+orderId = order.get("id").toString();
+orderStatus = order.get("status");
+// Only process if the order is now completed
+if(orderStatus != "completed")
+{
+	return "Ignored: Order #" + orderId + "(not completed)";
+}
+searchQuery = "(Deal_Name:starts_with:Order #" + orderId + ")";
+searchDeals = zoho.crm.searchRecords("Deals",searchQuery);
+if(searchDeals.size() > 0)
+{
+	dealId = searchDeals.get(0).get("id");
+	currentStage = searchDeals.get(0).get("Stage");
+	updateData = Map();
+	updateData.put("Stage","Closed Won");
+	updateResponse = zoho.crm.updateRecord("Deals",dealId,updateData);
+	info "Success: Deal ID " + dealId + " updated to Closed Won: " + updateResponse;
+	return "Deal successfully updated to Closed Won for Order #" + orderId;
+}
+else
+{
+	info "Warning: No Deal found for Order #" + orderId;
+	return "Error: Deal not found.";
+}
+}

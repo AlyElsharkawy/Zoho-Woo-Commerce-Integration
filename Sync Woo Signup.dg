@@ -1,0 +1,107 @@
+string standalone.sync_woo_signup(Map crmAPIRequest)
+{
+payloadString = crmAPIRequest.get("body");
+if(payloadString == "")
+{
+	return "Error: Empty request body";
+}
+
+recordsList = payloadString.toJSONList();
+user = recordsList.get(0).toMap();
+email = ifNull(user.get("email"),"");
+firstName = ifNull(user.get("first_name"),"");
+lastName = ifNull(user.get("last_name"),"");
+if(email == "")
+{
+	return "Skipping: No email provided in payload.";
+}string standalone.sync_woo_signup(Map crmAPIRequest)
+{
+payloadString = crmAPIRequest.get("body");
+if(payloadString == "")
+{
+	return "Error: Empty request body";
+}
+recordsList = payloadString.toJSONList();
+user = recordsList.get(0).toMap();
+email = ifNull(user.get("email"),"");
+firstName = ifNull(user.get("first_name"),"");
+lastName = ifNull(user.get("last_name"),"");
+if(email == "")
+{
+	return "Skipping: No email provided in payload.";
+}
+// Extract phone safely from the nested billing object
+phoneNumber = "";
+billingInfo = user.get("billing");
+if(billingInfo != null)
+{
+	rawPhone = ifNull(billingInfo.get("phone"),"");
+	phoneNumber = rawPhone.replaceAll("-","");
+}
+leadData = Map();
+leadData.put("First_Name",firstName);
+leadData.put("Email",email);
+leadData.put("Phone",phoneNumber);
+leadData.put("Company","Furious Shark Hosting");
+
+if(lastName != "")
+{
+	leadData.put("Last_Name",lastName);
+}
+else
+{
+	leadData.put("Last_Name","Valued Customer");
+}
+
+searchLead = zoho.crm.searchRecords("Leads","(Email:equals:" + email + ")");
+if(searchLead.size() > 0)
+{
+	leadId = searchLead.get(0).get("id");
+	response = zoho.crm.updateRecord("Leads",leadId,leadData);
+	info "Successfully updated existing Lead: " + response;
+}
+else
+{
+	response = zoho.crm.createRecord("Leads",leadData);
+	info "Successfully created new Lead: " + response;
+}
+return "success";
+}
+
+
+// Extract phone safely from the nested billing object
+phoneNumber = "";
+billingInfo = user.get("billing");
+if(billingInfo != null)
+{
+	rawPhone = ifNull(billingInfo.get("phone"),"");
+	phoneNumber = rawPhone.replaceAll("-","");
+}
+leadData = Map();
+leadData.put("First_Name",firstName);
+leadData.put("Email",email);
+leadData.put("Phone",phoneNumber);
+leadData.put("Company","Furious Shark Hosting");
+if(lastName != "")
+{
+	leadData.put("Last_Name",lastName);
+}
+else
+{
+	leadData.put("Last_Name","Valued Customer");
+}
+
+searchLead = zoho.crm.searchRecords("Leads","(Email:equals:" + email + ")");
+if(searchLead.size() > 0)
+{
+	leadId = searchLead.get(0).get("id");
+	response = zoho.crm.updateRecord("Leads",leadId,leadData);
+	info "Successfully updated existing Lead: " + response;
+}
+else
+{
+	response = zoho.crm.createRecord("Leads",leadData);
+	info "Successfully created new Lead: " + response;
+}
+return "success";
+}
